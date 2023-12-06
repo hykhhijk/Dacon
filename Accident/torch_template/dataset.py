@@ -85,13 +85,16 @@ train_x.fillna(0, inplace=True)
 test_x.fillna(0, inplace=True)
 
 class CustomDataset(Dataset):
-    def __init__(self):
+    def __init__(self, is_split=False):
         super(CustomDataset, self).__init__()
         self.x = train_x
-        self.y = train_y
+        if is_split==True:
+            self.y = train_df[['사망자수', '중상자수', '경상자수', '부상자수']]
+        else:
+            self.y = train_y
         # 텐서 변환
         self.x = torch.tensor(self.x.values).float()
-        self.y = torch.tensor(self.y).float()
+        self.y = torch.tensor(self.y.values).float()
         
     def __len__(self):
         return len(self.x)
@@ -100,6 +103,7 @@ class CustomDataset(Dataset):
         x = self.x[idx]
         y = self.y[idx]
         return x, y
+    
     def split_dataset(self, val_ratio=0.1):
         train_indices, val_indices = train_test_split(
             range(len(self)), test_size=val_ratio

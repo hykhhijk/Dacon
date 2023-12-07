@@ -2,6 +2,7 @@ import os
 import numpy as np
 import random
 import pandas as pd
+import argparse
 from tqdm.auto import tqdm
 
 # torch
@@ -13,6 +14,8 @@ from torch.utils.data import DataLoader, Subset
 # dataset
 from dataset import CustomDataset
 from dataset import TestDataset
+
+from torch.utils.tensorboard import SummaryWriter
 
 path = "/mnt/d/data/accident/"
 sample_submission = pd.read_csv(path+"sample_submission.csv")
@@ -98,17 +101,18 @@ def train(model, data_loader, criterion, optimizer, epochs, val_every, is_split=
             running_loss += loss.item()
         # 누적합산된 배치별 loss값을 배치의 개수로 나누어 Epoch당 loss를 산출합니다.
         loss = running_loss / len(data_loader)
-        train_losses.append(loss)
 
         # 20번의 Epcoh당 출력합니다.
         if epoch % val_every == 0:
             val_loss = validation(epoch=epoch+1, data_loader=valid_loader, criterion=criterion, model=model, is_split=is_split)
-            print("{0:05d} val_loss = {1:.5f}".format(epoch, val_loss))
-            print("{0:05d} loss = {1:.5f}".format(epoch, loss))
+            print("val_loss = {0:.5f}".format(val_loss))
+            print("loss = {0:.5f}".format(loss))
+            writer.add_scalar("Loss/train", loss, epoch)
+            writer.add_scalar("Loss/valid", val_loss, epoch)
 
 
     print("----" * 15)
-    print("{0:05d} loss = {1:.5f}".format(epoch, loss))
+    print("loss = {0:.5f}".format(loss))
 
 
 print ("PyTorch version:[%s]."%(torch.__version__))
@@ -134,26 +138,51 @@ class DenseModel(nn.Module):
     def forward(self,x):
         return self.net(x)     
     
-val_every = 5
-is_split=True
-train_loader, valid_loader, test_loader = make_dataset(is_split=is_split)
 
-model = DenseModel(20, 4).to(device)
-optm = optim.Adam(model.parameters(),lr=1e-4)
 
-train(model = model, data_loader=train_loader, criterion=rmsle, optimizer=optm, epochs=100, val_every=val_every, is_split = is_split)
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--epochs", type=int, default=100)
+    parser.add_argument("--val_every", type=int, default=10)
+    parser.add_argument("--is_split", type=str)
 
-predictions = []
-model.eval()
-with torch.no_grad():
-    for batch in test_loader:
-        batch_in = batch.to(device)
-        pred_ = model(batch_in)
-        pred = pred_[:,0]*10 + pred_[:,1]*5 +pred_[:,2]*3 + pred_[:,3]
-        predictions.append(pred.cpu().numpy())
-all_predictions = np.concatenate(predictions, axis=0)
+    args = parser.parse_args()
+    print(args)
+    epochs = args.epochs
+    val_every = args.val_every
+    is_split=False
+    if args.is_split=="True":
+        is_split = True
 
-baseline_submission = sample_submission.copy()
-baseline_submission['ECLO'] = all_predictions
+    if is_split==True:
+        output_dim = 4
+    else:
+        output_dim=1
 
-baseline_submission.to_csv('baseline_submit.csv', index=False)
+    train_loader, valid_loader, test_loader = make_dataset(is_split=is_split)
+
+    model = DenseModel(20, output_dim).to(device)
+    optm = optim.Adam(model.parameters(),lr=1e-6)
+    writer = SummaryWriter()
+    train(model = model, data_loader=train_loader, criterion=rmsle, optimizer=optm, epochs=100, val_every=val_every, is_split = is_split)
+    writer.flush()
+
+    #pordict test set
+    predictions = []
+    model.eval()
+    with torch.no_grad():
+        for batch in test_loader:
+            batch_in = batch.to(device)
+            pred_ = model(batch_in)
+            if is_split==True:
+                pred = pred_[:,0]*10 + pred_[:,1]*5 +pred_[:,2]*3 + pred_[:,3]
+            else:
+                pred = pred_
+            predictions.append(pred.cpu().numpy())
+    all_predictions = np.concatenate(predictions, axis=0)
+
+    baseline_submission = sample_submission.copy()
+    baseline_submission['ECLO'] = all_predictions
+
+    baseline_submission.to_csv('baseline_submit.csv', index=False)
+

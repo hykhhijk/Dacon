@@ -164,7 +164,7 @@ if __name__ == '__main__':
     model = DenseModel(20, output_dim).to(device)
     optm = optim.Adam(model.parameters(),lr=1e-6)
     writer = SummaryWriter()
-    train(model = model, data_loader=train_loader, criterion=rmsle, optimizer=optm, epochs=100, val_every=val_every, is_split = is_split)
+    train(model = model, data_loader=train_loader, criterion=rmsle, optimizer=optm, epochs=epochs, val_every=val_every, is_split = is_split)
     writer.flush()
 
     #pordict test set
@@ -183,6 +183,11 @@ if __name__ == '__main__':
 
     baseline_submission = sample_submission.copy()
     baseline_submission['ECLO'] = all_predictions
-
-    baseline_submission.to_csv('baseline_submit.csv', index=False)
+    base_name = "baseline_submit"
+    save_name = base_name
+    cnt=0
+    while os.path.isfile(save_name+".csv"):
+        save_name = f"{base_name}_{cnt}"
+        cnt+=1
+    baseline_submission.to_csv(save_name+".csv", index=False)
 

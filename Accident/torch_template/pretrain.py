@@ -12,8 +12,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader, Subset
 # dataset
-from dataset import CustomDataset
-from dataset import TestDataset
+from pretrain_dataset import PretrainDataset
 
 from torch.utils.tensorboard import SummaryWriter
 
@@ -31,19 +30,16 @@ def seed_everything(seed):
     torch.backends.cudnn.benchmark = False
 
 
-def make_dataset(val_size=0.1, is_split=False, batch_size=32):
-    dataset = CustomDataset(is_split)
+def make_dataset(val_size=0.1, is_split=False):
+    dataset = PretrainDataset(is_split)
     train_dataset, valid_dataset = dataset.split_dataset(val_size)
-    test_dataset = TestDataset()
-    print(f"Train: {len(train_dataset)}, Valid: {len(valid_dataset)}, Test: {len(test_dataset)}")
+    print(f"Train: {len(train_dataset)}, Valid: {len(valid_dataset)}")
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    valid_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
-
+    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, drop_last=True)
+    valid_loader = DataLoader(valid_dataset, batch_size=32, shuffle=True)
 
     #valid를 어떤식으로 쪼갤지 생각해보자
-    return [train_loader, valid_loader, test_loader]
+    return [train_loader, valid_loader]
 
 
 def rmsle(pred, target):
@@ -78,7 +74,7 @@ def validation(epoch, model, data_loader, criterion, is_split=False):
 
 
 def train(model, data_loader, criterion, optimizer, epochs, val_every, is_split=False):
-    train_losses = []
+    rmsles = 0
     for epoch in range(epochs):
         # loss 초기화
         running_loss = 0
@@ -87,7 +83,9 @@ def train(model, data_loader, criterion, optimizer, epochs, val_every, is_split=
             # x, y 데이터를 device 에 올립니다. (cuda:0 혹은 cpu)                
             x = x.to(device)
             y = y.to(device)
-        
+            # print(x.shape)
+            # print(y.shape)
+
             optimizer.zero_grad()
             outputs =  model(x)
             if is_split==True:
@@ -96,18 +94,25 @@ def train(model, data_loader, criterion, optimizer, epochs, val_every, is_split=
                 loss = criterion(y_hat, y)
             else:
                 loss = criterion(outputs, y)
+            loss = torch.sqrt(loss)
             loss.backward()
+
+            rmsles += rmsle(outputs, y).item()
+
             optimizer.step()
             running_loss += loss.item()
         # 누적합산된 배치별 loss값을 배치의 개수로 나누어 Epoch당 loss를 산출합니다.
         loss = running_loss / len(data_loader)
-
+        metric = rmsles / len(data_loader)
         # 20번의 Epcoh당 출력합니다.
+        writer.add_scalar("Loss/train", loss, epoch)
+        writer.add_scalar("Loss/train/rmsle", metric, epoch)
         if epoch % val_every == 0:
             val_loss = validation(epoch=epoch+1, data_loader=valid_loader, criterion=criterion, model=model, is_split=is_split)
             print("val_loss = {0:.5f}".format(val_loss))
             print("loss = {0:.5f}".format(loss))
-            writer.add_scalar("Loss/train", loss, epoch)
+            print("train_rmsle = {0:.5f}".format(metric))
+
             writer.add_scalar("Loss/valid", val_loss, epoch)
 
 
@@ -144,16 +149,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--val_every", type=int, default=10)
-    parser.add_argument("--batch_size", type=int, default=32)
-    parser.add_argument("--base_name", type=str, default="baseline_submit")
     parser.add_argument("--is_split", type=str)
 
     args = parser.parse_args()
     print(args)
     epochs = args.epochs
     val_every = args.val_every
-    batch_size = args.batch_size
-    base_name = args.base_name
     is_split=False
     if args.is_split=="True":
         is_split = True
@@ -163,12 +164,13 @@ if __name__ == '__main__':
     else:
         output_dim=1
 
-    train_loader, valid_loader, test_loader = make_dataset(is_split=is_split, batch_size=batch_size)
+    train_loader, valid_loader = make_dataset(is_split=is_split)
 
-    model = DenseModel(20, output_dim).to(device)
+    model = DenseModel(13, output_dim).to(device)
     optm = optim.Adam(model.parameters(),lr=1e-3)
     writer = SummaryWriter()
-    train(model = model, data_loader=train_loader, criterion=rmsle, optimizer=optm, epochs=epochs, val_every=val_every, is_split = is_split)
+
+    train(model = model, data_loader=train_loader, criterion=torch.nn.MSELoss(), optimizer=optm, epochs=epochs, val_every=val_every, is_split = is_split)
     writer.flush()
 
     #pordict test set
@@ -187,6 +189,7 @@ if __name__ == '__main__':
 
     baseline_submission = sample_submission.copy()
     baseline_submission['ECLO'] = all_predictions
+    base_name = "baseline_submit"
     save_name = base_name
     cnt=0
     while os.path.isfile(save_name+".csv"):

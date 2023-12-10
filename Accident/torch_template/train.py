@@ -4,6 +4,7 @@ import random
 import pandas as pd
 import argparse
 from tqdm.auto import tqdm
+from importlib import import_module
 
 # torch
 import torch
@@ -55,7 +56,7 @@ def rmsle(pred, target):
     return(torch.sqrt(loss.mean() + 1e-9))
 
 def validation(epoch, model, data_loader, criterion, is_split=False):
-    print(f'Start validation #{epoch:2d}')
+    print(f'Start validation #{epoch:2d}{"----"*10}')
     model.eval()
     losses = 0
     with torch.no_grad():
@@ -78,11 +79,11 @@ def validation(epoch, model, data_loader, criterion, is_split=False):
 
 
 def train(model, data_loader, criterion, optimizer, epochs, val_every, is_split=False):
-    train_losses = []
     for epoch in range(epochs):
         # loss 초기화
         running_loss = 0
         model.train()
+        rmsles=0
         for x, y in data_loader:
             # x, y 데이터를 device 에 올립니다. (cuda:0 혹은 cpu)                
             x = x.to(device)
@@ -96,19 +97,30 @@ def train(model, data_loader, criterion, optimizer, epochs, val_every, is_split=
                 loss = criterion(y_hat, y)
             else:
                 loss = criterion(outputs, y)
+
+            if args.loss!="rmsle":
+                rmsles += rmsle(y_hat, y).item()
+
             loss.backward()
             optimizer.step()
             running_loss += loss.item()
         # 누적합산된 배치별 loss값을 배치의 개수로 나누어 Epoch당 loss를 산출합니다.
         loss = running_loss / len(data_loader)
-
+        rmsles = rmsles / len(data_loader)
+        if write=="True":
+            writer.add_scalar("Loss/train", loss, epoch)
+        if args.loss!="rmsle":
+            print(f"rmsle: {rmsles}")
+            if write=="True":
+                writer.add_scalar("Loss/train/rmsle", rmsles, epoch)
         # 20번의 Epcoh당 출력합니다.
         if epoch % val_every == 0:
             val_loss = validation(epoch=epoch+1, data_loader=valid_loader, criterion=criterion, model=model, is_split=is_split)
             print("val_loss = {0:.5f}".format(val_loss))
             print("loss = {0:.5f}".format(loss))
-            writer.add_scalar("Loss/train", loss, epoch)
-            writer.add_scalar("Loss/valid", val_loss, epoch)
+            if write=="True":
+                writer.add_scalar("Loss/train", loss, epoch)
+                writer.add_scalar("Loss/valid", val_loss, epoch)
 
 
     print("----" * 15)
@@ -126,10 +138,13 @@ class DenseModel(nn.Module):
 
         self.layers = []
         self.layers.append(nn.BatchNorm1d(input_dim))
+        self.layers.append(nn.Dropout1d())
         self.layers.append(nn.Linear(input_dim, 16, bias=True))
         self.layers.append(nn.ReLU(True))
         self.layers.append(nn.Linear(16, 32, bias=True))
         self.layers.append(nn.ReLU(True))
+
+
         self.layers.append(nn.Linear(32, output_dim, bias=True))
 
         self.net = nn.Sequential(*self.layers)
@@ -146,7 +161,12 @@ if __name__ == '__main__':
     parser.add_argument("--val_every", type=int, default=10)
     parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--base_name", type=str, default="baseline_submit")
+    parser.add_argument("--loss", type=str, default="rmsle")
+    parser.add_argument("--write", type=str, default="True")
+    parser.add_argument("--suffix", type=str, default="")
     parser.add_argument("--is_split", type=str)
+
+
 
     args = parser.parse_args()
     print(args)
@@ -154,6 +174,11 @@ if __name__ == '__main__':
     val_every = args.val_every
     batch_size = args.batch_size
     base_name = args.base_name
+    write = args.write
+    suffix = args.suffix
+
+    criterion = getattr(import_module("loss"), args.loss)
+
     is_split=False
     if args.is_split=="True":
         is_split = True
@@ -167,9 +192,11 @@ if __name__ == '__main__':
 
     model = DenseModel(20, output_dim).to(device)
     optm = optim.Adam(model.parameters(),lr=1e-3)
-    writer = SummaryWriter()
-    train(model = model, data_loader=train_loader, criterion=rmsle, optimizer=optm, epochs=epochs, val_every=val_every, is_split = is_split)
-    writer.flush()
+    if write=="True":
+        writer = SummaryWriter(comment=f"batch_size_{batch_size}_{suffix}")         #config this line for experiment value
+    train(model = model, data_loader=train_loader, criterion=criterion, optimizer=optm, epochs=epochs, val_every=val_every, is_split = is_split)
+    if write=="True":
+        writer.flush()
 
     #pordict test set
     predictions = []

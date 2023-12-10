@@ -5,6 +5,7 @@ from torch.utils.data import Dataset, Subset
 from sklearn.preprocessing import LabelEncoder
 import torch
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 import copy
 
 path = "/mnt/d/data/accident/"
@@ -84,6 +85,10 @@ for i in categorical_features:
 train_x.fillna(0, inplace=True)
 test_x.fillna(0, inplace=True)
 
+scaler = StandardScaler()
+train_x = scaler.fit_transform(train_x)
+test_x = scaler.transform(test_x)
+
 class CustomDataset(Dataset):
     def __init__(self, is_split=False):
         super(CustomDataset, self).__init__()
@@ -93,7 +98,7 @@ class CustomDataset(Dataset):
         else:
             self.y = train_y
         # 텐서 변환
-        self.x = torch.tensor(self.x.values).float()
+        self.x = torch.tensor(self.x).float()
         self.y = torch.tensor(self.y.values).float()
         
     def __len__(self):
@@ -118,7 +123,7 @@ class TestDataset(Dataset):
         super(TestDataset, self).__init__()
         self.x = test_x
         # 텐서 변환
-        self.x = torch.tensor(self.x.values).float()
+        self.x = torch.tensor(self.x).float()
         
     def __len__(self):
         return len(self.x)

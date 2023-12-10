@@ -30,13 +30,13 @@ def seed_everything(seed):
     torch.backends.cudnn.benchmark = False
 
 
-def make_dataset(val_size=0.1, is_split=False):
+def make_dataset(val_size=0.1, is_split=False, batch_size=32):
     dataset = PretrainDataset(is_split)
     train_dataset, valid_dataset = dataset.split_dataset(val_size)
     print(f"Train: {len(train_dataset)}, Valid: {len(valid_dataset)}")
 
-    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, drop_last=True)
-    valid_loader = DataLoader(valid_dataset, batch_size=32, shuffle=True)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
+    valid_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=True)
 
     #valid를 어떤식으로 쪼갤지 생각해보자
     return [train_loader, valid_loader]
@@ -79,6 +79,7 @@ def train(model, data_loader, criterion, optimizer, epochs, val_every, is_split=
         # loss 초기화
         running_loss = 0
         model.train()
+        rmsles=0
         for x, y in data_loader:
             # x, y 데이터를 device 에 올립니다. (cuda:0 혹은 cpu)                
             x = x.to(device)
@@ -108,7 +109,7 @@ def train(model, data_loader, criterion, optimizer, epochs, val_every, is_split=
         writer.add_scalar("Loss/train", loss, epoch)
         writer.add_scalar("Loss/train/rmsle", metric, epoch)
         if epoch % val_every == 0:
-            val_loss = validation(epoch=epoch+1, data_loader=valid_loader, criterion=criterion, model=model, is_split=is_split)
+            val_loss = validation(epoch=epoch+1, data_loader=valid_loader, criterion=nn.MSELoss(), model=model, is_split=is_split)
             print("val_loss = {0:.5f}".format(val_loss))
             print("loss = {0:.5f}".format(loss))
             print("train_rmsle = {0:.5f}".format(metric))
@@ -150,12 +151,15 @@ if __name__ == '__main__':
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--val_every", type=int, default=10)
     parser.add_argument("--is_split", type=str)
+    parser.add_argument("--batch_size", type=int, default=32)
 
     args = parser.parse_args()
     print(args)
     epochs = args.epochs
     val_every = args.val_every
     is_split=False
+    batch_size = args.batch_size
+
     if args.is_split=="True":
         is_split = True
 
@@ -164,13 +168,13 @@ if __name__ == '__main__':
     else:
         output_dim=1
 
-    train_loader, valid_loader = make_dataset(is_split=is_split)
+    train_loader, valid_loader = make_dataset(is_split=is_split, batch_size=batch_size)
 
     model = DenseModel(13, output_dim).to(device)
     optm = optim.Adam(model.parameters(),lr=1e-3)
     writer = SummaryWriter()
 
-    train(model = model, data_loader=train_loader, criterion=torch.nn.MSELoss(), optimizer=optm, epochs=epochs, val_every=val_every, is_split = is_split)
+    train(model = model, data_loader=train_loader, criterion=rmsle, optimizer=optm, epochs=epochs, val_every=val_every, is_split = is_split)
     writer.flush()
 
     #pordict test set

@@ -38,7 +38,7 @@ def make_dataset(val_size=0.1, is_split=False, batch_size=32):
     test_dataset = TestDataset()
     print(f"Train: {len(train_dataset)}, Valid: {len(valid_dataset)}, Test: {len(test_dataset)}")
 
-    train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)     #all data included
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     valid_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
 
@@ -79,6 +79,10 @@ def validation(epoch, model, data_loader, criterion, is_split=False):
 
 
 def train(model, data_loader, criterion, optimizer, epochs, val_every, is_split=False):
+    #append load model_weights
+    model.load_state_dict(torch.load("model_weights.pth"))
+
+
     for epoch in range(epochs):
         # loss 초기화
         running_loss = 0
@@ -99,7 +103,7 @@ def train(model, data_loader, criterion, optimizer, epochs, val_every, is_split=
                 loss = criterion(outputs, y)
 
             if args.loss!="rmsle":
-                rmsles += rmsle(y_hat, y).item()
+                rmsles += rmsle(outputs, y).item()
 
             loss.backward()
             optimizer.step()
@@ -143,9 +147,10 @@ class DenseModel(nn.Module):
         self.layers.append(nn.ReLU(True))
         self.layers.append(nn.Linear(16, 32, bias=True))
         self.layers.append(nn.ReLU(True))
-
-
         self.layers.append(nn.Linear(32, output_dim, bias=True))
+
+        self.net = nn.Sequential(*self.layers)
+
 
         self.net = nn.Sequential(*self.layers)
 
@@ -178,6 +183,7 @@ if __name__ == '__main__':
     suffix = args.suffix
 
     criterion = getattr(import_module("loss"), args.loss)
+
     is_split=False
     if args.is_split=="True":
         is_split = True
@@ -187,9 +193,9 @@ if __name__ == '__main__':
     else:
         output_dim=1
     seed_everything(42)
-    train_loader, valid_loader, test_loader = make_dataset(is_split=is_split, batch_size=batch_size, val_size=0.1)
+    train_loader, valid_loader, test_loader = make_dataset(is_split=is_split, batch_size=batch_size)
 
-    model = DenseModel(20, output_dim).to(device)
+    model = DenseModel(13, output_dim).to(device)
     optm = optim.Adam(model.parameters(),lr=1e-3)
     if write=="True":
         writer = SummaryWriter(comment=f"batch_size_{batch_size}_{suffix}")         #config this line for experiment value

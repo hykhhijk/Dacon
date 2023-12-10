@@ -76,6 +76,10 @@ def validation(epoch, model, data_loader, criterion, is_split=False):
 def train(model, data_loader, criterion, optimizer, epochs, val_every, is_split=False):
     rmsles = 0
     for epoch in range(epochs):
+        if epoch < 100:
+            criterion = nn.MSELoss()
+        else:
+            criterion = rmsle
         # loss 초기화
         running_loss = 0
         model.train()
@@ -91,11 +95,9 @@ def train(model, data_loader, criterion, optimizer, epochs, val_every, is_split=
             outputs =  model(x)
             if is_split==True:
                 y_hat = outputs[:,0]*10 + outputs[:,1]*5 + outputs[:,2]*3 + outputs[:,3]
-                y = y[:,0]*10 + y[:,1]*5 + y[:,2]*3 + y[:,3]
-                loss = criterion(y_hat, y)
+                loss = criterion(y_hat, y[:,0]*10 + y[:,1]*5 + y[:,2]*3 + y[:,3])
             else:
                 loss = criterion(outputs, y)
-            loss = torch.sqrt(loss)
             loss.backward()
 
             rmsles += rmsle(outputs, y).item()
@@ -109,7 +111,7 @@ def train(model, data_loader, criterion, optimizer, epochs, val_every, is_split=
         writer.add_scalar("Loss/train", loss, epoch)
         writer.add_scalar("Loss/train/rmsle", metric, epoch)
         if epoch % val_every == 0:
-            val_loss = validation(epoch=epoch+1, data_loader=valid_loader, criterion=nn.MSELoss(), model=model, is_split=is_split)
+            val_loss = validation(epoch=epoch+1, data_loader=valid_loader, criterion=rmsle, model=model, is_split=is_split)
             print("val_loss = {0:.5f}".format(val_loss))
             print("loss = {0:.5f}".format(loss))
             print("train_rmsle = {0:.5f}".format(metric))
@@ -119,6 +121,7 @@ def train(model, data_loader, criterion, optimizer, epochs, val_every, is_split=
 
     print("----" * 15)
     print("loss = {0:.5f}".format(loss))
+    return model
 
 
 print ("PyTorch version:[%s]."%(torch.__version__))
@@ -132,6 +135,7 @@ class DenseModel(nn.Module):
 
         self.layers = []
         self.layers.append(nn.BatchNorm1d(input_dim))
+        self.layers.append(nn.Dropout1d())
         self.layers.append(nn.Linear(input_dim, 16, bias=True))
         self.layers.append(nn.ReLU(True))
         self.layers.append(nn.Linear(16, 32, bias=True))
@@ -167,37 +171,15 @@ if __name__ == '__main__':
         output_dim = 4
     else:
         output_dim=1
-
+    seed_everything(42)
     train_loader, valid_loader = make_dataset(is_split=is_split, batch_size=batch_size)
 
     model = DenseModel(13, output_dim).to(device)
-    optm = optim.Adam(model.parameters(),lr=1e-3)
+    optm = optim.Adam(model.parameters(),lr=1e-5)
     writer = SummaryWriter()
 
-    train(model = model, data_loader=train_loader, criterion=rmsle, optimizer=optm, epochs=epochs, val_every=val_every, is_split = is_split)
+    model = train(model = model, data_loader=train_loader, criterion=rmsle, optimizer=optm, epochs=epochs, val_every=val_every, is_split = is_split)
+    torch.save(model.state_dict(), "model_weights.pth")
     writer.flush()
 
-    #pordict test set
-    predictions = []
-    model.eval()
-    with torch.no_grad():
-        for batch in test_loader:
-            batch_in = batch.to(device)
-            pred_ = model(batch_in)
-            if is_split==True:
-                pred = pred_[:,0]*10 + pred_[:,1]*5 +pred_[:,2]*3 + pred_[:,3]
-            else:
-                pred = pred_
-            predictions.append(pred.cpu().numpy())
-    all_predictions = np.concatenate(predictions, axis=0)
-
-    baseline_submission = sample_submission.copy()
-    baseline_submission['ECLO'] = all_predictions
-    base_name = "baseline_submit"
-    save_name = base_name
-    cnt=0
-    while os.path.isfile(save_name+".csv"):
-        save_name = f"{base_name}_{cnt}"
-        cnt+=1
-    baseline_submission.to_csv(save_name+".csv", index=False)
 

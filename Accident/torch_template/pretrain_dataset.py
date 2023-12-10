@@ -2,7 +2,7 @@ import pandas as pd
 import os
 import numpy as np
 from torch.utils.data import Dataset, Subset
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 import torch
 from sklearn.model_selection import train_test_split
 import copy
@@ -42,6 +42,9 @@ for i in categorical_features:
     le=le.fit(train_x[i]) 
     train_x[i]=le.transform(train_x[i])
 
+scaler = StandardScaler()
+train_x = scaler.fit_transform(train_x)
+
 class PretrainDataset(Dataset):
     def __init__(self, is_split=False):
         super(PretrainDataset, self).__init__()
@@ -51,7 +54,7 @@ class PretrainDataset(Dataset):
         else:
             self.y = train_y
         # 텐서 변환
-        self.x = torch.tensor(self.x.values).float()
+        self.x = torch.tensor(self.x).float()
         self.y = torch.tensor(self.y.values).float()
         
     def __len__(self):

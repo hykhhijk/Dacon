@@ -74,6 +74,11 @@ test_df = pd.merge(test_df, parking_df, how='left', on=['도시', '구', '동'])
 test_x = test_df.drop(columns=['ID']).copy()
 train_x = train_df[test_x.columns].copy()
 train_y = train_df['ECLO'].copy()
+# train_x = train_df[['요일', '기상상태', '노면상태', '사고유형', '연', '월', '일', '시간', '도시', '구', '동',   #baseline전처리만 진행한 test_x의 column
+#        '도로형태1', '도로형태2']].copy()
+# test_x = test_x[['요일', '기상상태', '노면상태', '사고유형', '연', '월', '일', '시간', '도시', '구', '동',   #baseline전처리만 진행한 test_x의 column
+#        '도로형태1', '도로형태2']].copy()
+# train_y = train_df['ECLO'].copy()
 
 categorical_features = list(train_x.dtypes[train_x.dtypes == "object"].index)
 for i in categorical_features:
@@ -81,6 +86,7 @@ for i in categorical_features:
     le=le.fit(train_x[i]) 
     train_x[i]=le.transform(train_x[i])
     test_x[i]=le.transform(test_x[i])
+
 
 train_x.fillna(0, inplace=True)
 test_x.fillna(0, inplace=True)

@@ -1,0 +1,129 @@
+﻿system,user
+"You are an expert in automotive data. Follow these instructions:
+
+1. If the input data is automotive-related data, determine it as 1, otherwise 0. There are 40 data to answer.
+2. ID: TEST_00 ~ TEST_39, and answer as 0 or 1 for each data, separated by row.
+3. Each Test data has a title. You have to use these information for prediction.
+4. If unsure or if your score is low, backtrack and try a different approach.
+5. Use at least 5 methods to derive the answer and consider alternative viewpoints.
+","ID: TEST_00
+title: Beach Profile Data Collected from Madeira Beach, Florida (January 15, 2021)
+
+ID: TEST_01
+title: Nota media de la nota de admisión (cohorte de nuevo ingreso en el SUE) por forma de admisión, ámbito de estudio y sexo (universidades públicas presenciales)
+
+ID: TEST_02
+title: Internet-based platform services 2019 according to various criteria
+
+ID: TEST_03
+title: 경상남도 김해시_자동차등록 현황
+
+ID: TEST_04
+title: EV用充電設備の設置状況データ一覧
+
+ID: TEST_05
+title: 경기아트센터 장애인기업 생산제품 구매 현황
+
+ID: TEST_06
+title: Autohaus
+
+ID: TEST_07
+title: 2021년 농식품부 국가안전대진단 실행계획
+
+ID: TEST_08
+title: 경기도 성남시_교통단속 카메라 파일데이터
+
+ID: TEST_09
+title: 영화 관람 데이터
+
+ID: TEST_10
+title: 인천광역시_차로폭 차로수 현황
+
+ID: TEST_11
+title: (1월) 차량용 GPS Raw Data(PND)
+
+ID: TEST_12
+title: Liste des jardins partagés à Paris
+
+ID: TEST_13
+title: 진주시 CCTV 신호대기시간 데이터
+
+ID: TEST_14
+title: Población por unidad poblacional
+
+ID: TEST_15
+title: 서울시 자치구별 수소차 등록현황
+
+ID: TEST_16
+title: Tablas estadísticas del Censo de Mercado de Trabajo 2021 (CMT). Comarcas y subcomarcas de CAE. Fase de oferta
+
+ID: TEST_17
+title: 서울시 국민연금 가입사업장 현황 통계
+
+ID: TEST_18
+title: Modelo de flujo de tráfico en tiempo real
+
+ID: TEST_19
+title: comune-di-lapedona-punti-interesse
+
+ID: TEST_20
+title: Straßenverkehrsunfälle in Schleswig-Holstein Juni 2015
+
+ID: TEST_21
+title: 경주시 교통카드 사용내역 데이터
+
+ID: TEST_22
+title: 新北市公車路線軌跡
+
+ID: TEST_23
+title: 해양수산부_해양환경 교육 콘텐츠
+
+ID: TEST_24
+title: Steuereinnahmen: Deutschland, Quartale, Steuerarten nach derSteuerverteilung
+
+ID: TEST_25
+title: Carriageway Details
+
+ID: TEST_26
+title: 대전시 도로 지점(노드) 데이터
+
+ID: TEST_27
+title: 강원도 강릉시_전기차 충전소
+
+ID: TEST_28
+title: Fire and Rescue Service Operational Statistics
+
+ID: TEST_29
+title: 서울시 동작구 식육포장처리업 인허가 정보
+
+ID: TEST_30
+title: 안구 움직임 영상 데이터
+
+ID: TEST_31
+title: 대전시 노변장치(RSE) 구간통행속도 이력 데이터
+
+ID: TEST_32
+title: 부산광역시_시립미술관 이용객 수
+
+ID: TEST_33
+title: 【京都府】幼保連携型認定こども園の年齢別園児数
+
+ID: TEST_34
+title: 한국도로공사_주행거리별 총이용차량(폐)
+
+ID: TEST_35
+title: Straßenverkehrsunfälle in Hamburg Dezember 2020 - – Vorläufige Ergebnisse –
+
+ID: TEST_36
+title: 대전시 노변장치(RSE) 구간통행속도 이력 데이터
+
+ID: TEST_37
+title: Echolotdaten - Nordsee 2021 9262103
+
+ID: TEST_38
+title: 한국어 멀티세션 대화
+
+ID: TEST_39
+title: Traffic Flow Data July to Dec 2020 SDCC
+
+make prediction for above 40 datas. answer as 0 or 1 for each data, separated by row(\n). You dont need to write any other information. If you are not sure about the answer, go back and think again."
